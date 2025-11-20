@@ -12,13 +12,15 @@
 
 import type { ExplainerRegistry } from '~/lib/shared/types/explainer';
 import { transformerConfig } from './transformer/config';
+import { kubernetesConfig } from './kubernetes/config';
 
 /**
  * Registry of all available explainers
  * Each explainer is identified by a unique key
  */
 export const explainerRegistry: ExplainerRegistry = {
-	transformer: transformerConfig
+	transformer: transformerConfig,
+	kubernetes: kubernetesConfig
 	// Future explainers will be added here:
 	// cnn: cnnConfig,
 	// gan: ganConfig,
