@@ -1,7 +1,19 @@
 <script lang="ts">
 	/**
-	 * Control Panel for Kubernetes Explainer
-	 * Allows users to select scenarios and control animations
+	 * @fileoverview Control Panel Component for Kubernetes Explainer
+	 *
+	 * Provides user interface for:
+	 * - Selecting request scenarios (User Login, Create Order, etc.)
+	 * - Controlling animation speed (0.5x - 2x)
+	 * - Starting/stopping request flow animations
+	 *
+	 * This component orchestrates the RequestFlowEngine (simulation)
+	 * and RequestFlowAnimator (visualization) to create realistic
+	 * request flow demonstrations through the Kubernetes architecture.
+	 *
+	 * @module ControlPanel
+	 * @requires ../utils/requestFlow - For request simulation with proper latency
+	 * @requires ../utils/animation - For GSAP-based visual animations
 	 */
 	import { onDestroy } from 'svelte';
 	import Slider from '~/lib/shared/components/Slider.svelte';
@@ -16,15 +28,48 @@
 	import { requestFlowAnimator } from '../utils/animation';
 	import type { RequestEvent } from '../types/kubernetes';
 
-	// Initialize request flow engine
+	/**
+	 * Request flow engine instance
+	 * Handles realistic simulation with proper latency calculation using
+	 * Box-Muller transform for normal distribution
+	 * @type {RequestFlowEngine}
+	 */
 	const requestEngine = new RequestFlowEngine();
 
-	// Track current request for cleanup
+	/**
+	 * Tracks if a request is currently running
+	 * Prevents multiple simultaneous requests
+	 * @type {boolean}
+	 */
 	let isRequestRunning = false;
 
 	/**
 	 * Starts the request flow animation for the selected scenario
-	 * Uses RequestFlowEngine for simulation and RequestFlowAnimator for visualization
+	 *
+	 * Orchestrates both visual animation (GSAP) and simulation (RequestFlowEngine):
+	 * 1. Validates scenario selection
+	 * 2. Extracts component path from scenario
+	 * 3. Initializes active request in store
+	 * 4. Starts GSAP animation timeline (visual)
+	 * 5. Runs RequestFlowEngine simulation (data) in parallel
+	 * 6. Updates trace/span IDs with OpenTelemetry format
+	 * 7. Cleans up on completion or error
+	 *
+	 * Both animation and simulation run concurrently with Promise.all()
+	 * for optimal performance and synchronization.
+	 *
+	 * @async
+	 * @returns {Promise<void>}
+	 * @throws {Error} Logs error to console, doesn't throw to caller
+	 *
+	 * @example
+	 * ```typescript
+	 * // Called when user clicks "Start Flow" button
+	 * await startAnimation();
+	 * // Result: Components highlight sequentially with GSAP
+	 * //         Metrics update with realistic latency
+	 * //         Store tracks current step and trace IDs
+	 * ```
 	 */
 	async function startAnimation(): Promise<void> {
 		if ($selectedExampleIdx < 0 || $selectedExampleIdx >= exampleRequests.length) {
@@ -120,7 +165,27 @@
 	}
 
 	/**
-	 * Stops the current animation and cleans up
+	 * Stops the current animation and cleans up resources
+	 *
+	 * Performs complete cleanup:
+	 * 1. Cancels GSAP animation timeline
+	 * 2. Resets animation state flag
+	 * 3. Clears active request from store
+	 * 4. Resets request running flag
+	 *
+	 * Safe to call multiple times or when no animation is running.
+	 * Called automatically on component destroy.
+	 *
+	 * @returns {void}
+	 *
+	 * @example
+	 * ```typescript
+	 * // User clicks "Stop" button
+	 * stopAnimation();
+	 * // Result: Animation stops immediately
+	 * //         All state resets to initial values
+	 * //         Ready for next animation
+	 * ```
 	 */
 	function stopAnimation(): void {
 		requestFlowAnimator.cancel();
@@ -130,7 +195,14 @@
 	}
 
 	/**
-	 * Cleanup on component destroy
+	 * Lifecycle: Component destroy
+	 *
+	 * Ensures proper cleanup when component unmounts:
+	 * - Stops any running animations
+	 * - Prevents memory leaks
+	 * - Cleans up GSAP timelines
+	 *
+	 * @returns {void}
 	 */
 	onDestroy(() => {
 		stopAnimation();

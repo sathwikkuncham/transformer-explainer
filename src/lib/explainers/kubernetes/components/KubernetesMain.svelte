@@ -1,9 +1,23 @@
 <script lang="ts">
 	/**
-	 * Kubernetes .NET Architecture Explainer - Main Component
-	 * Interactive visualization of .NET microservices on Kubernetes
+	 * @fileoverview Kubernetes .NET Architecture Explainer - Main Component
+	 *
+	 * This is the primary container component for the Kubernetes .NET architecture visualization.
+	 * It orchestrates the entire interactive experience including:
+	 * - Real-time metrics collection and display
+	 * - Request flow animations through microservices
+	 * - Component interaction and state management
+	 * - Responsive layout with control panel, architecture visualization, and metrics
+	 *
+	 * @module KubernetesMain
+	 * @requires svelte/store - For reactive state management
+	 * @requires ../utils/metrics - For realistic metrics simulation
+	 *
+	 * @example
+	 * import KubernetesMain from '~/lib/explainers/kubernetes/components/KubernetesMain.svelte';
+	 * // Then use in your Svelte template: <KubernetesMain />
 	 */
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import { fade, fly } from 'svelte/transition';
 	import classNames from 'classnames';
 
@@ -41,33 +55,100 @@
 	// Import utilities
 	import { metricsCollector } from '../utils/metrics';
 
+	/**
+	 * Component initialization state
+	 * @type {boolean}
+	 */
 	let active = false;
+
+	/**
+	 * Error state for error boundary handling
+	 * @type {Error | null}
+	 */
+	let errorState: Error | null = null;
+
+	/**
+	 * Container dimensions for responsive calculations
+	 * @type {number}
+	 */
 	let containerHeight = 0;
 	let containerWidth = 0;
 
+	/**
+	 * Lifecycle: Component mount
+	 * Initializes metrics collection and sets up cleanup
+	 *
+	 * @fires metricsCollector.startAutoCollection - Starts 1-second interval metrics updates
+	 * @returns {Function} Cleanup function to stop metrics collection
+	 */
 	onMount(() => {
-		active = true;
+		try {
+			active = true;
 
-		// Start metrics collection with realistic simulation
-		metricsCollector.startAutoCollection((collectedMetrics) => {
-			metrics.set(collectedMetrics);
-		}, 1000); // Update every 1 second
+			// Start metrics collection with realistic simulation
+			// Uses Box-Muller transform for normal distribution
+			// Updates every 1 second with realistic fluctuation
+			metricsCollector.startAutoCollection((collectedMetrics) => {
+				try {
+					metrics.set(collectedMetrics);
+				} catch (error) {
+					console.error('Error updating metrics:', error);
+					errorState = error instanceof Error ? error : new Error(String(error));
+				}
+			}, 1000);
 
-		return () => {
-			// Cleanup: Stop metrics collection
-			metricsCollector.stopAutoCollection();
-		};
+			return () => {
+				// Cleanup: Stop metrics collection
+				metricsCollector.stopAutoCollection();
+			};
+		} catch (error) {
+			console.error('Error in component initialization:', error);
+			errorState = error instanceof Error ? error : new Error(String(error));
+		}
 	});
 
-	function handleComponentClick(componentId: string) {
-		if ($selectedComponent === componentId) {
-			selectedComponent.set(null);
-		} else {
-			selectedComponent.set(componentId);
+	/**
+	 * Lifecycle: Component destroy
+	 * Ensures cleanup even if onMount cleanup doesn't run
+	 */
+	onDestroy(() => {
+		try {
+			metricsCollector.stopAutoCollection();
+		} catch (error) {
+			console.error('Error during cleanup:', error);
+		}
+	});
+
+	/**
+	 * Handles component selection/deselection
+	 * Toggles component highlighting and detail view
+	 *
+	 * @param {string} componentId - The ID of the component to select
+	 * @example
+	 * handleComponentClick('api-gateway') // Selects API Gateway
+	 * handleComponentClick('api-gateway') // Deselects if already selected
+	 */
+	function handleComponentClick(componentId: string): void {
+		try {
+			if ($selectedComponent === componentId) {
+				selectedComponent.set(null);
+			} else {
+				selectedComponent.set(componentId);
+			}
+		} catch (error) {
+			console.error('Error handling component click:', error);
 		}
 	}
 
-	function handleLayerExpand(layerId: string) {
+	/**
+	 * Handles layer expansion/collapse
+	 * Used for expandable layers like WorkerNode
+	 *
+	 * @param {string} layerId - The ID of the layer to expand/collapse
+	 * @example
+	 * handleLayerExpand('worker') // Expands worker node to show pods
+	 */
+	function handleLayerExpand(layerId: string): void {
 		if ($expandedLayer === layerId) {
 			expandedLayer.set(null);
 		} else {
@@ -82,8 +163,33 @@
 	bind:offsetHeight={containerHeight}
 	bind:offsetWidth={containerWidth}
 >
-	<!-- Header -->
-	<div class="header">
+	<!-- Error Boundary -->
+	{#if errorState}
+		<div class="error-boundary" role="alert" aria-live="assertive">
+			<div class="error-content">
+				<div class="error-icon">⚠️</div>
+				<h2 class="error-title">Something went wrong</h2>
+				<p class="error-message">
+					We encountered an error while loading the Kubernetes explainer.
+				</p>
+				<details class="error-details">
+					<summary>Technical details</summary>
+					<pre class="error-stack">{errorState.message}</pre>
+				</details>
+				<button
+					class="error-retry"
+					on:click={() => {
+						errorState = null;
+						window.location.reload();
+					}}
+				>
+					Reload Page
+				</button>
+			</div>
+		</div>
+	{:else}
+		<!-- Header -->
+		<div class="header">
 		<div class="flex items-center gap-3">
 			<span class="text-3xl">☸️</span>
 			<div>
@@ -210,9 +316,100 @@
 			</div>
 		{/if}
 	</div>
+	{/if}
 </div>
 
 <style lang="scss">
+	/* Error Boundary Styles */
+	.error-boundary {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		min-height: 100vh;
+		background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+		padding: 2rem;
+	}
+
+	.error-content {
+		background: white;
+		border-radius: 12px;
+		padding: 2rem;
+		max-width: 600px;
+		box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+		text-align: center;
+	}
+
+	.error-icon {
+		font-size: 4rem;
+		margin-bottom: 1rem;
+	}
+
+	.error-title {
+		font-size: 1.5rem;
+		font-weight: 700;
+		color: #991b1b;
+		margin-bottom: 0.5rem;
+	}
+
+	.error-message {
+		color: #6b7280;
+		margin-bottom: 1.5rem;
+		line-height: 1.6;
+	}
+
+	.error-details {
+		text-align: left;
+		background: #f9fafb;
+		border-radius: 6px;
+		padding: 1rem;
+		margin-bottom: 1.5rem;
+		border: 1px solid #e5e7eb;
+
+		summary {
+			cursor: pointer;
+			font-weight: 600;
+			color: #374151;
+			user-select: none;
+
+			&:hover {
+				color: #1f2937;
+			}
+		}
+	}
+
+	.error-stack {
+		margin-top: 0.75rem;
+		padding: 0.75rem;
+		background: white;
+		border-radius: 4px;
+		font-size: 0.875rem;
+		color: #dc2626;
+		overflow-x: auto;
+		border: 1px solid #fecaca;
+	}
+
+	.error-retry {
+		background: #ef4444;
+		color: white;
+		padding: 0.75rem 2rem;
+		border-radius: 6px;
+		border: none;
+		font-weight: 600;
+		cursor: pointer;
+		transition: all 0.2s;
+
+		&:hover {
+			background: #dc2626;
+			transform: translateY(-1px);
+			box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+		}
+
+		&:active {
+			transform: translateY(0);
+		}
+	}
+
+	/* Existing Styles */
 	.kubernetes-explainer {
 		height: 100vh;
 		width: 100vw;
