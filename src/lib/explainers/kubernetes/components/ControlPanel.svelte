@@ -42,10 +42,13 @@
 		isRequestRunning = true;
 
 		try {
+			// Extract component IDs from path
+			const componentPath = scenario.path.map((step) => step.component);
+
 			// Initialize active request
 			activeRequest.set({
 				id: scenario.id,
-				path: scenario.path,
+				path: componentPath,
 				currentStep: 0,
 				data: {
 					method: scenario.method || 'POST',
@@ -60,7 +63,7 @@
 
 			// Start visual animation
 			const animationPromise = requestFlowAnimator.animate(
-				scenario.path,
+				componentPath,
 				{
 					duration: 3000,
 					speed: $animationSpeed,
