@@ -7,6 +7,7 @@
 
 <div
 	class="identity-provider"
+	data-component-id="identity-provider"
 	class:hovered={$hoveredComponent === 'identity'}
 	on:click={() => dispatch('click')}
 	on:mouseenter={() => hoveredComponent.set('identity')}

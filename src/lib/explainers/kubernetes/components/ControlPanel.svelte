@@ -3,6 +3,7 @@
 	 * Control Panel for Kubernetes Explainer
 	 * Allows users to select scenarios and control animations
 	 */
+	import { onDestroy } from 'svelte';
 	import Slider from '~/lib/shared/components/Slider.svelte';
 	import {
 		selectedExampleIdx,
@@ -11,39 +12,126 @@
 		exampleRequests,
 		activeRequest
 	} from '../store';
+	import { RequestFlowEngine } from '../utils/requestFlow';
+	import { requestFlowAnimator } from '../utils/animation';
+	import type { RequestEvent } from '../types/kubernetes';
 
-	function startAnimation() {
-		if ($selectedExampleIdx >= 0 && $selectedExampleIdx < exampleRequests.length) {
-			const example = exampleRequests[$selectedExampleIdx];
-			isAnimating.set(true);
+	// Initialize request flow engine
+	const requestEngine = new RequestFlowEngine();
+
+	// Track current request for cleanup
+	let isRequestRunning = false;
+
+	/**
+	 * Starts the request flow animation for the selected scenario
+	 * Uses RequestFlowEngine for simulation and RequestFlowAnimator for visualization
+	 */
+	async function startAnimation(): Promise<void> {
+		if ($selectedExampleIdx < 0 || $selectedExampleIdx >= exampleRequests.length) {
+			console.warn('Invalid example index:', $selectedExampleIdx);
+			return;
+		}
+
+		if (isRequestRunning) {
+			console.warn('Request already running');
+			return;
+		}
+
+		const scenario = exampleRequests[$selectedExampleIdx];
+		isAnimating.set(true);
+		isRequestRunning = true;
+
+		try {
+			// Initialize active request
 			activeRequest.set({
-				id: example.id,
-				path: example.path,
+				id: scenario.id,
+				path: scenario.path,
 				currentStep: 0,
 				data: {
-					method: 'POST',
-					endpoint: '/api/orders',
-					headers: { 'Content-Type': 'application/json' },
-					traceId: `trace-${Date.now()}`,
-					spanId: `span-${Date.now()}`
-				}
+					method: scenario.method || 'POST',
+					endpoint: scenario.endpoint || '/api/request',
+					headers: scenario.headers || { 'Content-Type': 'application/json' },
+					body: scenario.body,
+					traceId: '', // Will be set by RequestFlowEngine
+					spanId: '' // Will be set by RequestFlowEngine
+				},
+				timestamp: Date.now()
 			});
 
-			// Simulate animation completion
-			setTimeout(
-				() => {
-					isAnimating.set(false);
-					activeRequest.set(null);
+			// Start visual animation
+			const animationPromise = requestFlowAnimator.animate(
+				scenario.path,
+				{
+					duration: 3000,
+					speed: $animationSpeed,
+					loop: false
 				},
-				5000 / $animationSpeed
+				(progress: number, currentStep: number) => {
+					// Update active request with current step
+					activeRequest.update((req) => {
+						if (req) {
+							return { ...req, currentStep };
+						}
+						return req;
+					});
+				}
 			);
+
+			// Start request simulation
+			const requestPromise = requestEngine.simulateRequest(
+				scenario,
+				(event: RequestEvent) => {
+					// Handle request events (component entry/exit, errors)
+					if (event.type === 'error') {
+						console.error('Request error:', event.error);
+					}
+					// Update request data with trace information
+					if (event.type === 'start' && event.traceId) {
+						activeRequest.update((req) => {
+							if (req && req.data) {
+								return {
+									...req,
+									data: {
+										...req.data,
+										traceId: event.traceId || '',
+										spanId: event.spanId || ''
+									}
+								};
+							}
+							return req;
+						});
+					}
+				}
+			);
+
+			// Wait for both animation and simulation to complete
+			await Promise.all([animationPromise, requestPromise]);
+		} catch (error) {
+			console.error('Animation error:', error);
+		} finally {
+			// Clean up
+			isAnimating.set(false);
+			activeRequest.set(null);
+			isRequestRunning = false;
 		}
 	}
 
-	function stopAnimation() {
+	/**
+	 * Stops the current animation and cleans up
+	 */
+	function stopAnimation(): void {
+		requestFlowAnimator.cancel();
 		isAnimating.set(false);
 		activeRequest.set(null);
+		isRequestRunning = false;
 	}
+
+	/**
+	 * Cleanup on component destroy
+	 */
+	onDestroy(() => {
+		stopAnimation();
+	});
 </script>
 
 <div class="control-panel">

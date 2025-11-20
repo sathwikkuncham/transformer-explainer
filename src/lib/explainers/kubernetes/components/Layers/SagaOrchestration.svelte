@@ -7,6 +7,7 @@
 
 <div
 	class="saga-orchestration"
+	data-component-id="saga-orchestrator"
 	class:hovered={$hoveredComponent === 'saga'}
 	on:click={() => dispatch('click')}
 	on:mouseenter={() => hoveredComponent.set('saga')}

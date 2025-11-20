@@ -21,7 +21,17 @@ const config = {
 		}),
 		prerender: {
 			// List the specific routes to prerender
-			entries: ['/' /* other routes if needed */]
+			entries: ['/' /* other routes if needed */],
+			// Handle prerender errors gracefully (e.g., missing consent-form.pdf)
+			handleHttpError: ({ path, referrer, message }) => {
+				// Ignore 404 errors for missing static assets during prerendering
+				if (path === '/transformer-explainer/consent-form.pdf') {
+					console.warn(`Ignoring missing file: ${path}`);
+					return;
+				}
+				// Throw other errors
+				throw new Error(message);
+			}
 		},
 		alias: {
 			'~': './src'

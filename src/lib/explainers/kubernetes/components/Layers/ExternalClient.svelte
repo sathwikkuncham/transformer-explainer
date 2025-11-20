@@ -15,6 +15,7 @@
 
 <div
 	class="external-client"
+	data-component-id="external-client"
 	class:hovered={$hoveredComponent === 'external'}
 	on:click={handleClick}
 	on:mouseenter={() => hoveredComponent.set('external')}

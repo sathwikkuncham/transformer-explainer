@@ -7,6 +7,7 @@
 
 <div
 	class="observability"
+	data-component-id="observability"
 	class:hovered={$hoveredComponent === 'observability'}
 	on:click={() => dispatch('click')}
 	on:mouseenter={() => hoveredComponent.set('observability')}

@@ -7,6 +7,7 @@
 
 <div
 	class="ingress-controller"
+	data-component-id="ingress"
 	class:hovered={$hoveredComponent === 'ingress'}
 	on:click={() => dispatch('click')}
 	on:mouseenter={() => hoveredComponent.set('ingress')}

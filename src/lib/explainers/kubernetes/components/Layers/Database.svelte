@@ -7,6 +7,7 @@
 
 <div
 	class="database"
+	data-component-id="database"
 	class:hovered={$hoveredComponent === 'database'}
 	on:click={() => dispatch('click')}
 	on:mouseenter={() => hoveredComponent.set('database')}

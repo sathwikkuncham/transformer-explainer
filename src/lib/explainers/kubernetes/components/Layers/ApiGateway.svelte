@@ -7,6 +7,7 @@
 
 <div
 	class="api-gateway"
+	data-component-id="api-gateway"
 	class:hovered={$hoveredComponent === 'api-gateway'}
 	on:click={() => dispatch('click')}
 	on:mouseenter={() => hoveredComponent.set('api-gateway')}

@@ -22,6 +22,7 @@
 
 <div
 	class="worker-node"
+	data-component-id="worker-node"
 	class:expanded
 	class:hovered={$hoveredComponent === 'worker'}
 	on:mouseenter={() => hoveredComponent.set('worker')}
@@ -44,7 +45,7 @@
 	{#if expanded}
 		<div class="node-content" transition:slide={{ duration: 300 }}>
 			<!-- Pod Container -->
-			<div class="pod" on:click|stopPropagation={handleClick} role="button" tabindex="0" on:keypress={(e) => e.key === 'Enter' && handleClick()}>
+			<div class="pod" data-component-id="pod" on:click|stopPropagation={handleClick} role="button" tabindex="0" on:keypress={(e) => e.key === 'Enter' && handleClick()}>
 				<div class="pod-header">
 					<span class="text-lg">📦</span>
 					<div>
@@ -58,7 +59,7 @@
 				</div>
 
 				<!-- .NET Application Container -->
-				<div class="container dotnet-container">
+				<div class="container dotnet-container" data-component-id="app">
 					<div class="container-header">
 						<span class="text-base">🐳</span>
 						<span class="text-sm font-medium text-gray-700"

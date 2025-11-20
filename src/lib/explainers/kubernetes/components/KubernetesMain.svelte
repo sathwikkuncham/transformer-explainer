@@ -34,8 +34,12 @@
 		isAnimating,
 		showMetrics,
 		selectedExampleIdx,
-		currentExample
+		currentExample,
+		metrics
 	} from '../store';
+
+	// Import utilities
+	import { metricsCollector } from '../utils/metrics';
 
 	let active = false;
 	let containerHeight = 0;
@@ -43,9 +47,15 @@
 
 	onMount(() => {
 		active = true;
-		// Initialize any data or animations here
+
+		// Start metrics collection with realistic simulation
+		metricsCollector.startAutoCollection((collectedMetrics) => {
+			metrics.set(collectedMetrics);
+		}, 1000); // Update every 1 second
+
 		return () => {
-			// Cleanup
+			// Cleanup: Stop metrics collection
+			metricsCollector.stopAutoCollection();
 		};
 	});
 
