@@ -1,22 +1,27 @@
 /**
  * Kubernetes .NET Architecture Explainer - Store
  * Manages state for the Kubernetes/Cloud architecture visualization
+ *
+ * @module store
  */
 
 import { writable, derived } from 'svelte/store';
+import type { RequestFlow, Metrics, DatabaseMetrics, MessageBrokerMetrics, DeploymentConfig } from '../types/kubernetes';
+import { REQUEST_SCENARIOS } from '../utils/requestFlow';
 
-// Request flow state
-export const activeRequest = writable<{
-	id: string;
-	path: string[];
-	currentStep: number;
-	data: any;
-} | null>(null);
+/**
+ * Currently active request flow (null when no request is active)
+ */
+export const activeRequest = writable<RequestFlow | null>(null);
 
-// Selected component for detailed view
+/**
+ * Selected component ID for detailed view
+ */
 export const selectedComponent = writable<string | null>(null);
 
-// Visibility toggles for different layers
+/**
+ * Visibility toggles for different architecture layers
+ */
 export const layerVisibility = writable({
 	external: true,
 	ingress: true,
@@ -33,27 +38,47 @@ export const layerVisibility = writable({
 	telemetry: true
 });
 
-// Animation state
-export const isAnimating = writable(false);
-export const animationSpeed = writable(1); // 1x, 2x, 0.5x speed
+/**
+ * Animation state
+ */
+export const isAnimating = writable<boolean>(false);
 
-// Component metrics (simulated)
-export const metrics = writable({
+/**
+ * Animation speed multiplier (0.5x, 1x, 2x)
+ */
+export const animationSpeed = writable<number>(1);
+
+/**
+ * Real-time metrics (updated by MetricsCollector)
+ */
+export const metrics = writable<{
+	pod: Metrics;
+	database: DatabaseMetrics;
+	messageBroker: MessageBrokerMetrics;
+	apiGateway: {
+		totalRequests: number;
+		successRate: number;
+		avgLatency: number;
+	};
+}>({
 	pod: {
 		cpu: 45,
 		memory: 62,
 		requests: 1247,
-		latency: 125
+		latency: 125,
+		errorRate: 0
 	},
 	database: {
 		connections: 23,
 		transactions: 5420,
-		outboxMessages: 15
+		outboxMessages: 15,
+		avgQueryTime: 35
 	},
 	messageBroker: {
 		published: 342,
 		consumed: 338,
-		pending: 4
+		pending: 4,
+		deadLetters: 0
 	},
 	apiGateway: {
 		totalRequests: 12847,
@@ -62,66 +87,48 @@ export const metrics = writable({
 	}
 });
 
-// Request examples
-export const exampleRequests = [
-	{
-		id: 'user-login',
-		label: 'User Login',
-		description: 'User authentication flow through identity provider',
-		path: ['client', 'ingress', 'api-gateway', 'identity', 'response']
-	},
-	{
-		id: 'create-order',
-		label: 'Create Order',
-		description: 'Full microservice flow with saga orchestration',
-		path: [
-			'client',
-			'ingress',
-			'api-gateway',
-			'identity',
-			'saga',
-			'pod',
-			'app-logic',
-			'ef-core',
-			'database',
-			'outbox',
-			'message-broker',
-			'consumer',
-			'target-service',
-			'observability',
-			'response'
-		]
-	},
-	{
-		id: 'health-check',
-		label: 'Health Check',
-		description: 'Kubernetes liveness/readiness probe',
-		path: ['kubelet', 'pod', 'app-logic', 'response']
-	},
-	{
-		id: 'async-message',
-		label: 'Async Message Processing',
-		description: 'Message-driven architecture flow',
-		path: ['message-broker', 'consumer', 'app-logic', 'database', 'outbox']
-	}
-];
+/**
+ * Example request scenarios (from requestFlow utility)
+ */
+export const exampleRequests = REQUEST_SCENARIOS;
 
-export const selectedExampleIdx = writable(0);
+/**
+ * Currently selected example index
+ */
+export const selectedExampleIdx = writable<number>(0);
 
-// Current example
+/**
+ * Currently selected example (derived from index)
+ */
 export const currentExample = derived(
 	selectedExampleIdx,
 	($selectedExampleIdx) => exampleRequests[$selectedExampleIdx]
 );
 
-// UI state
+/**
+ * Currently expanded layer ID
+ */
 export const expandedLayer = writable<string | null>(null);
-export const hoveredComponent = writable<string | null>(null);
-export const showMetrics = writable(true);
-export const showTracing = writable(true);
 
-// Deployment configuration
-export const deploymentConfig = writable({
+/**
+ * Currently hovered component ID
+ */
+export const hoveredComponent = writable<string | null>(null);
+
+/**
+ * Show/hide metrics panel
+ */
+export const showMetrics = writable<boolean>(true);
+
+/**
+ * Show/hide distributed tracing visualization
+ */
+export const showTracing = writable<boolean>(true);
+
+/**
+ * Kubernetes deployment configuration
+ */
+export const deploymentConfig = writable<DeploymentConfig>({
 	replicas: 3,
 	cpu: '500m',
 	memory: '512Mi',
@@ -131,16 +138,21 @@ export const deploymentConfig = writable({
 	targetCPU: 70
 });
 
-// Kubernetes metadata
+/**
+ * Kubernetes cluster metadata
+ */
 export const kubernetesMetadata = {
 	namespace: 'production',
 	clusterName: 'aks-prod-cluster',
 	region: 'eastus',
 	version: '1.28.0'
-};
+} as const;
 
-// Reset all stores
-export function resetStores() {
+/**
+ * Resets all stores to initial state
+ * Used when switching explainers or resetting the visualization
+ */
+export function resetStores(): void {
 	activeRequest.set(null);
 	selectedComponent.set(null);
 	selectedExampleIdx.set(0);
@@ -148,4 +160,6 @@ export function resetStores() {
 	hoveredComponent.set(null);
 	isAnimating.set(false);
 	animationSpeed.set(1);
+	showMetrics.set(true);
+	showTracing.set(true);
 }

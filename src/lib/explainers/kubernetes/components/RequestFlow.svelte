@@ -2,34 +2,62 @@
 	/**
 	 * Request Flow Visualization
 	 * Shows animated flow of requests through the system
+	 *
+	 * @component RequestFlow
+	 * @prop {IRequestFlow} request - Current active request flow
+	 *
+	 * @accessibility
+	 * - Live region announces flow progress
+	 * - Descriptive labels for screen readers
 	 */
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import { fade } from 'svelte/transition';
+	import type { RequestFlow as IRequestFlow } from '../types/kubernetes';
 
-	export let request: any;
+	/**
+	 * Current active request flow
+	 */
+	export let request: IRequestFlow;
 
-	let pathElements: any[] = [];
+	let mounted = false;
 
 	onMount(() => {
-		// In a full implementation, this would animate through each step
-		// For now, we'll show the request info
+		mounted = true;
+	});
+
+	onDestroy(() => {
+		mounted = false;
 	});
 </script>
 
 {#if request}
-	<div class="request-flow" transition:fade={{ duration: 200 }}>
+	<div
+		class="request-flow"
+		transition:fade={{ duration: 200 }}
+		role="status"
+		aria-live="polite"
+		aria-label="Request flow in progress"
+	>
 		<div class="request-info">
 			<div class="info-header">
 				<span class="text-sm font-semibold">Request in Progress</span>
-				<span class="trace-id">Trace: {request.data.traceId.slice(0, 16)}...</span>
+				<span class="trace-id" aria-label="Trace ID">
+					Trace: {request.data.traceId.slice(0, 16)}...
+				</span>
 			</div>
-			<div class="flow-path">
+			<div class="flow-path" role="list" aria-label="Request flow path">
 				{#each request.path as step, idx}
-					<span class="path-step" class:active={idx === request.currentStep}>
+					<span
+						class="path-step"
+						class:active={idx === request.currentStep}
+						role="listitem"
+						aria-current={idx === request.currentStep ? 'step' : undefined}
+						aria-label="{step} - {idx === request.currentStep ? 'current step' : `step ${idx + 1}`}"
+					>
 						{step}
 					</span>
 					{#if idx < request.path.length - 1}
-						<span class="arrow">→</span>
+						<span class="arrow" aria-hidden="true">→</span>
 					{/if}
 				{/each}
 			</div>
@@ -82,12 +110,20 @@
 		font-size: 0.8rem;
 		color: #6b7280;
 		transition: all 0.3s;
+		min-height: 44px; /* Accessibility: minimum touch target */
+		display: flex;
+		align-items: center;
 
 		&.active {
 			background: #3b82f6;
 			color: white;
 			font-weight: 600;
 			animation: pulse 1.5s ease-in-out infinite;
+		}
+
+		&:focus {
+			outline: 2px solid #3b82f6;
+			outline-offset: 2px;
 		}
 	}
 
@@ -103,6 +139,12 @@
 		}
 		50% {
 			transform: scale(1.1);
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.path-step.active {
+			animation: none;
 		}
 	}
 </style>
